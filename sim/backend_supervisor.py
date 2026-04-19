@@ -46,10 +46,10 @@ if os.environ.get("ENABLE_TRACKER", "0") == "1":
 class _Child:
     """Encapsule un processus enfant avec logique de redémarrage bornée."""
 
-    def __init__(self, cmd: list) -> None:
+    def __init__(self, cmd: list[str]) -> None:
         self.cmd = cmd
-        self.proc: subprocess.Popen = None
-        self._restart_times: collections.deque = collections.deque()
+        self.proc: subprocess.Popen | None = None
+        self._restart_times: collections.deque[float] = collections.deque()
         self.gave_up: bool = False
         self._reported_dead: bool = False
 
@@ -113,8 +113,8 @@ class _Child:
 # Démarrage et arrêt
 # ---------------------------------------------------------------------------
 
-def start_children() -> list:
-    children = []
+def start_children() -> list[_Child]:
+    children: list[_Child] = []
     for cmd in SCRIPTS:
         child = _Child(cmd)
         child.start()
@@ -122,7 +122,7 @@ def start_children() -> list:
     return children
 
 
-def shutdown(children: list, timeout: float = 5.0) -> None:
+def shutdown(children: list[_Child], timeout: float = 5.0) -> None:
     print("[supervisor] Arrêt en cours...", flush=True)
     for child in children:
         if child.poll() is None and child.proc is not None:
