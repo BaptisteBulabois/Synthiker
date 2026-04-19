@@ -148,6 +148,31 @@ docker compose down
    ```
    Vous devez voir une adresse IP de type `192.168.x.x`.
 
+### ❌ Le container backend s'arrête immédiatement
+
+**Symptôme** : `docker compose up` affiche des warnings du supervisor et le container sort.
+
+**Diagnostic** :
+
+```powershell
+docker compose logs --tail=200 backend
+```
+
+Les dernières lignes indiquent la cause (traceback Python, import manquant, etc.).
+
+Pour reproduire l'erreur directement dans un shell interactif :
+
+```powershell
+docker compose run --rm backend python -u sim/sequencer.py --bpm 120
+```
+
+**Causes fréquentes** :
+
+1. **Import manquant** → vérifiez que le `Dockerfile` installe toutes les dépendances (`pip install -r requirements.txt`).
+2. **Erreur dans un script** → consultez le traceback complet dans les logs ci-dessus.
+
+---
+
 ### ❌ Erreur `port is already allocated`
 
 Un autre processus utilise déjà le port. Vérifiez :
