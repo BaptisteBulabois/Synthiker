@@ -1,0 +1,40 @@
+# .dockerignore — Fichiers exclus du contexte de build Docker
+
+# Environnements virtuels Python
+venv/
+.venv/
+env/
+
+# Bytecode Python
+__pycache__/
+*.py[cod]
+*.pyo
+
+# Fichiers de backup Pure Data
+*.pd~
+
+# Éditeurs / IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Systèmes de fichiers
+.DS_Store
+Thumbs.db
+
+# Git
+.git/
+.gitignore
+
+# Artifacts de build / distribution
+*.egg-info/
+dist/
+build/
+
+# Variables d'environnement locales
+.env
+*.env
+
+# Logs
+*.log

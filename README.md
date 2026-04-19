@@ -35,25 +35,32 @@ Synthiker/
 ├── README.md
 ├── LICENSE
 ├── .gitignore
+├── .dockerignore
+├── Dockerfile
+├── docker-compose.yml
 ├── requirements.txt
 ├── sim/
 │   ├── __init__.py
-│   ├── osc_bridge.py       # Helpers OSC partagés
-│   ├── fake_panel.py       # UI mock PyGame (12 encodeurs + 8 boutons + OLED mock)
-│   ├── sequencer.py        # Séquenceur 16 pas → OSC
-│   ├── tracker_mode.py     # Mode tracker JSON → OSC
-│   ├── ai_gen.py           # IA fallback Markov → OSC
-│   └── oled_emu.py         # Émulateur OLED (luma.emulator)
+│   ├── osc_bridge.py           # Helpers OSC partagés (lit PD_HOST)
+│   ├── fake_panel.py           # UI mock PyGame (12 encodeurs + 8 boutons + OLED mock)
+│   ├── sequencer.py            # Séquenceur 16 pas → OSC
+│   ├── tracker_mode.py         # Mode tracker JSON → OSC
+│   ├── ai_gen.py               # IA fallback Markov → OSC
+│   ├── oled_emu.py             # Émulateur OLED (luma.emulator)
+│   └── backend_supervisor.py   # Superviseur Docker (seq + IA + tracker)
 ├── pd_patches/
-│   ├── synth_main.pd       # Patch Pd vanilla : netreceive OSC → osc~ + filtre
+│   ├── synth_main.pd           # Patch Pd vanilla : netreceive OSC → osc~ + filtre
 │   └── modules/
-│       └── README.md       # Placeholder modules avancés (PR #3)
+│       └── README.md           # Placeholder modules avancés (PR #3)
 ├── docs/
 │   ├── osc_protocol.md
 │   ├── simulation_guide.md
+│   ├── docker_guide.md         # Guide Docker hybride Windows
 │   └── roadmap.md
 └── scripts/
-    └── run_sim.sh          # Lance tout d'un coup
+    ├── run_sim.sh              # Lance tout d'un coup (local)
+    ├── docker_run.ps1          # Lanceur Docker (Windows PowerShell)
+    └── docker_run.sh           # Lanceur Docker (bash)
 ```
 
 ---
@@ -134,6 +141,31 @@ python sim/tracker_mode.py
 | **W** | Encodeur suivant |
 | **1..8** | Boutons PAD (REC, PLAY, STOP, P1, P2, P3, P4, MODE) |
 | **Échap** | Quitter |
+
+---
+
+## 🐳 Docker (Windows, approche hybride)
+
+Vous pouvez faire tourner les composants **backend** (sequencer, IA Markov, tracker) dans un container Docker sur Windows, tout en gardant **Pure Data** (audio) et **fake_panel** (UI) sur l'hôte.
+
+### Démarrage rapide
+
+```powershell
+# Prérequis : Docker Desktop installé et Pure Data lancé avec DSP activé
+docker compose up --build
+```
+
+Ou avec le script PowerShell inclus :
+
+```powershell
+.\scripts\docker_run.ps1
+```
+
+### Documentation complète
+
+👉 [docs/docker_guide.md](docs/docker_guide.md)
+
+Le guide couvre les prérequis, la configuration du pare-feu, le dépannage du port 5005 et la vérification des paquets OSC.
 
 ---
 
