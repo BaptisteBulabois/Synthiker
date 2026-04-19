@@ -1,0 +1,31 @@
+# docker-compose.yml — Synthiker backend (approche hybride)
+#
+# Ce fichier démarre uniquement les composants Python "sans écran" :
+#   - sequencer.py
+#   - ai_gen.py
+#   - tracker_mode.py (optionnel, activer avec ENABLE_TRACKER=1)
+#
+# Pure Data et fake_panel.py continuent de tourner sur l'hôte Windows.
+# Le container envoie des messages OSC à Pure Data via host.docker.internal:5005.
+
+services:
+  backend:
+    build: .
+    image: synthiker-backend
+    environment:
+      # Sur Windows/macOS avec Docker Desktop, host.docker.internal résout
+      # vers l'adresse de l'hôte. Sur Linux natif, utiliser host-gateway
+      # ou l'IP de la machine (ex : 172.17.0.1).
+      - PD_HOST=${PD_HOST:-host.docker.internal}
+      # Mettre à 1 pour activer tracker_mode.py
+      - ENABLE_TRACKER=${ENABLE_TRACKER:-0}
+    restart: on-failure
+    # Limite les tentatives de redémarrage en cas d'erreur persistante.
+    deploy:
+      restart_policy:
+        condition: on-failure
+        max_attempts: 3
+    # Pas de port exposé : le container ENVOIE des UDP, il ne reçoit pas.
+    # Si vous souhaitez exposer un port de debug futur, décommentez ci-dessous :
+    # ports:
+    #   - "5005:5005/udp"

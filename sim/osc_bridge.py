@@ -1,11 +1,16 @@
 """OSC bridge - adresses et clients partagés pour la simu Synthiker."""
 
+import os
+
 from pythonosc.udp_client import SimpleUDPClient
 
 # ---------------------------------------------------------------------------
 # Réseau
 # ---------------------------------------------------------------------------
-OSC_IP = "127.0.0.1"
+# PD_HOST peut être surchargé via variable d'environnement.
+# Dans un container Docker sur Windows, utiliser host.docker.internal.
+# En usage local classique, 127.0.0.1 est utilisé par défaut.
+OSC_IP = os.environ.get("PD_HOST", "127.0.0.1")
 OSC_PORT_PD = 5005    # Pure Data écoute ici
 OSC_PORT_OLED = 5006  # Émulateur OLED écoute ici
 
