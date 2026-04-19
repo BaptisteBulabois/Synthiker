@@ -19,7 +19,12 @@ services:
       - PD_HOST=${PD_HOST:-host.docker.internal}
       # Mettre à 1 pour activer tracker_mode.py
       - ENABLE_TRACKER=${ENABLE_TRACKER:-0}
-    restart: unless-stopped
+    restart: on-failure
+    # Limite les tentatives de redémarrage en cas d'erreur persistante.
+    deploy:
+      restart_policy:
+        condition: on-failure
+        max_attempts: 3
     # Pas de port exposé : le container ENVOIE des UDP, il ne reçoit pas.
     # Si vous souhaitez exposer un port de debug futur, décommentez ci-dessous :
     # ports:

@@ -68,8 +68,10 @@ def main() -> None:
     children = start_children()
 
     def _handler(signum, _frame):
-        shutdown(children)
-        sys.exit(0)
+        try:
+            shutdown(children)
+        finally:
+            sys.exit(0)
 
     signal.signal(signal.SIGINT, _handler)
     signal.signal(signal.SIGTERM, _handler)
