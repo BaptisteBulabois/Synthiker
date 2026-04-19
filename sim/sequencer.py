@@ -63,9 +63,13 @@ def run_sequencer(bpm: int) -> None:
             )
             marker = list(bar)
             marker[step] = "▼"
-            print(f"\r[SEQ] Step {step:02d}/15  {' '.join(marker)}  "
-                  f"  active: {active_tracks if active_tracks else '—':20s}",
-                  end="", flush=True)
+            marker_str = " ".join(marker)
+            active_str = ", ".join(active_tracks) if active_tracks else "—"
+            line = f"[SEQ] Step {step:02d}/15  {marker_str}  active: {active_str:<20s}"
+            if sys.stdout.isatty():
+                print(f"\r{line}", end="", flush=True)
+            else:
+                print(line, flush=True)
 
             time.sleep(step_duration)
             step = (step + 1) % 16
