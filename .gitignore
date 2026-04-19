@@ -1,0 +1,11 @@
+venv/
+.venv/
+__pycache__/
+*.pyc
+.DS_Store
+*.swp
+.vscode/
+.idea/
+*.log
+*.pd~
+tracker_pattern.json.bak
