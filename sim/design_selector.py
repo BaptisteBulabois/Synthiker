@@ -1,18 +1,18 @@
 """
-design_selector.py — Sélecteur de design Synthiker.
+design_selector.py — Lanceur de session Synthiker Octatrack.
 
-Lance le séquenceur 16 pas avec les patterns et le BPM adaptés au design choisi,
+Lance le séquenceur 16 pas avec les patterns et le BPM adaptés au design Octatrack
 et affiche le patch Pure Data à ouvrir.
 
-Designs disponibles :
-  tr808    — Roland TR-808  (kick, snare, hi-hat, cowbell)
-  elektron — Elektron / Digitakt  (kick FM, snare snap, hat métallique, clap)
-  tb303    — Roland TB-303 Acid Bass  (basse acid monophonique)
+Patterns disponibles :
+  default  — Pattern 4/4 standard (grosse caisse sur les temps, basse pulsée)
+  live     — Syncopé, style performance Octatrack
+  scene_b  — Dense, tous les éléments actifs (typique Scène B)
 
 Usage :
-    python sim/design_selector.py --design tr808 --bpm 120
-    python sim/design_selector.py --design elektron
-    python sim/design_selector.py --design tb303 --pattern acid8
+    python sim/design_selector.py
+    python sim/design_selector.py --bpm 128
+    python sim/design_selector.py --pattern live
     python sim/design_selector.py --list
 """
 
@@ -23,53 +23,33 @@ import time
 sys.path.insert(0, __file__.replace("/sim/design_selector.py", ""))
 
 from sim.osc_bridge import make_pd_client, make_oled_client, ADDR_ENC, ADDR_SEQ_STEP, ADDR_SEQ_TRIG
-from sim.presets import DESIGNS
-import sim.presets.tr808 as _tr808
-import sim.presets.elektron as _elektron
-import sim.presets.tb303 as _tb303
 import sim.presets.octatrack as _octatrack
 
-# Patterns alternatifs accessibles par nom
-_EXTRA_PATTERNS: dict[str, dict] = {
-    "tr808":    {
-        "default":  _tr808.PATTERNS,
-        "boombap":  _tr808.PATTERNS_BOOMBAP,
-        "shuffle":  _tr808.PATTERNS_SHUFFLE,
-    },
-    "elektron": {
-        "default":  _elektron.PATTERNS,
-        "minimal":  _elektron.PATTERNS_MINIMAL,
-        "poly":     _elektron.PATTERNS_POLY,
-    },
-    "tb303":    {
-        "default":  _tb303.PATTERNS,
-        "acid8":    _tb303.PATTERNS_ACID8,
-        "squelch":  _tb303.PATTERNS_SQUELCH,
-    },
-    "octatrack": {
-        "default":  _octatrack.PATTERNS,
-        "live":     _octatrack.PATTERNS_LIVE,
-        "scene_b":  _octatrack.PATTERNS_SCENE_B,
-    },
+DESIGN_LABEL = "Elektron Octatrack"
+DESIGN_PATCH = "pd_patches/synth_octatrack.pd"
+TRACK_NAMES = ["bd", "sd", "hat", "clap", "bass", "lead", "chord", "fx"]
+
+_PATTERNS: dict[str, dict] = {
+    "default": _octatrack.PATTERNS,
+    "live":    _octatrack.PATTERNS_LIVE,
+    "scene_b": _octatrack.PATTERNS_SCENE_B,
 }
 
 
-def list_designs() -> None:
-    """Affiche les designs et patterns disponibles."""
+def list_patterns() -> None:
+    """Affiche les patterns disponibles."""
     print("\n╔══════════════════════════════════════════════╗")
-    print("║        Synthiker — Designs disponibles       ║")
+    print("║      Synthiker — Octatrack  Patterns         ║")
     print("╠══════════════════════════════════════════════╣")
-    for key, info in DESIGNS.items():
-        patterns = list(_EXTRA_PATTERNS[key].keys())
-        print(f"║  {key:<10}  {info['label']:<28}  ║")
-        print(f"║             Patterns : {', '.join(patterns):<22} ║")
-        print(f"║             Patch    : {info['patch']:<22} ║")
-        print("╠══════════════════════════════════════════════╣")
+    for name in _PATTERNS:
+        print(f"║  {name:<42} ║")
+    print(f"║  Patch : {DESIGN_PATCH:<36} ║")
+    print(f"║  BPM   : {_octatrack.DEFAULT_BPM:<36} ║")
     print("╚══════════════════════════════════════════════╝\n")
 
 
 def send_encoder_defaults(pd_client, oled_client, defaults: list[int]) -> None:
-    """Envoie les valeurs d'encodeurs par défaut du design via OSC."""
+    """Envoie les valeurs d'encodeurs par défaut via OSC."""
     for idx, val in enumerate(defaults):
         pd_client.send_message(ADDR_ENC.format(idx), val)
         oled_client.send_message(ADDR_ENC.format(idx), val)
@@ -77,7 +57,7 @@ def send_encoder_defaults(pd_client, oled_client, defaults: list[int]) -> None:
 
 
 def run_sequencer(patterns: dict[str, list[int]], bpm: int, track_names: list[str]) -> None:
-    """Boucle séquenceur 16 pas avec les patterns du design sélectionné."""
+    """Boucle séquenceur 16 pas avec les patterns Octatrack."""
     pd_client = make_pd_client()
     step_duration = 60.0 / (bpm * 4)
     track_steps = [patterns.get(name, [0] * 16) for name in track_names]
@@ -117,24 +97,19 @@ def run_sequencer(patterns: dict[str, list[int]], bpm: int, track_names: list[st
 def main() -> None:
     """Point d'entrée CLI."""
     parser = argparse.ArgumentParser(
-        description="Sélecteur de design Synthiker → lance le séquenceur avec le design choisi"
+        description="Synthiker Octatrack — lance le séquenceur 8 pistes"
     )
     parser.add_argument(
-        "--design", choices=list(DESIGNS.keys()),
-        default="tr808",
-        help="Design à charger (défaut : tr808)",
-    )
-    parser.add_argument(
-        "--pattern", default="default",
-        help="Nom du pattern alternatif (défaut : default)",
+        "--pattern", choices=list(_PATTERNS.keys()), default="default",
+        help="Pattern à charger (défaut : default)",
     )
     parser.add_argument(
         "--bpm", type=int, default=None,
-        help="Tempo en BPM (défaut : valeur recommandée du design)",
+        help=f"Tempo en BPM (défaut : {_octatrack.DEFAULT_BPM})",
     )
     parser.add_argument(
         "--list", action="store_true",
-        help="Liste les designs et patterns disponibles, puis quitte",
+        help="Liste les patterns disponibles, puis quitte",
     )
     parser.add_argument(
         "--no-seq", action="store_true",
@@ -143,49 +118,37 @@ def main() -> None:
     args = parser.parse_args()
 
     if args.list:
-        list_designs()
+        list_patterns()
         return
 
-    design_key = args.design
-    design_info = DESIGNS[design_key]
-    available_patterns = _EXTRA_PATTERNS[design_key]
-
-    if args.pattern not in available_patterns:
-        print(f"[ERREUR] Pattern inconnu '{args.pattern}' pour le design '{design_key}'.")
-        print(f"         Patterns disponibles : {', '.join(available_patterns)}")
-        sys.exit(1)
-
-    patterns = available_patterns[args.pattern]
-    bpm_map = {"tr808": _tr808.DEFAULT_BPM, "elektron": _elektron.DEFAULT_BPM,
-               "tb303": _tb303.DEFAULT_BPM, "octatrack": _octatrack.DEFAULT_BPM}
-    bpm = args.bpm or bpm_map[design_key]
+    bpm = args.bpm or _octatrack.DEFAULT_BPM
+    patterns = _PATTERNS[args.pattern]
 
     print(f"\n╔══════════════════════════════════════════════╗")
-    print(f"║  Design  : {design_info['label']:<33}║")
+    print(f"║  Design  : {DESIGN_LABEL:<33}║")
     print(f"║  Pattern : {args.pattern:<33}║")
     print(f"║  BPM     : {bpm:<33}║")
-    print(f"║  Patch Pd: {design_info['patch']:<33}║")
+    print(f"║  Patch Pd: {DESIGN_PATCH:<33}║")
     print(f"╚══════════════════════════════════════════════╝")
     print(f"\n  → Ouvre le patch dans Pure Data :")
-    print(f"    pd {design_info['patch']}\n")
+    print(f"    pd {DESIGN_PATCH}\n")
 
-    if design_key == "octatrack":
-        print("  ── Mode Octatrack ──────────────────────────────")
-        print("  Scènes A/B : utilise fake_panel.py --octatrack")
-        print("    P1 → Scène A   P2 → Scène B   P3 → Morph A↔B")
-        print("    ENC 11 (M3)   → crossfader /oct/scene")
-        print("    1-8 + molette → P-lock sur le step courant")
-        print("  ────────────────────────────────────────────────\n")
+    print("  ── Mode Octatrack ──────────────────────────────")
+    print("  Scènes A/B : utilise fake_panel.py --octatrack")
+    print("    P1 → Scène A   P2 → Scène B   P3 → Morph A↔B")
+    print("    ENC 11 (M3)   → crossfader /oct/scene")
+    print("    1-8 + molette → P-lock sur le step courant")
+    print("  ────────────────────────────────────────────────\n")
 
     pd_client = make_pd_client()
     oled_client = make_oled_client()
-    send_encoder_defaults(pd_client, oled_client, design_info["encoder_defaults"])
+    send_encoder_defaults(pd_client, oled_client, _octatrack.ENCODER_DEFAULTS_A)
 
     if args.no_seq:
         print("[DESIGN] Mode --no-seq : encodeurs initialisés, séquenceur non démarré.")
         return
 
-    run_sequencer(patterns, bpm, design_info["tracks"])
+    run_sequencer(patterns, bpm, TRACK_NAMES)
 
 
 if __name__ == "__main__":

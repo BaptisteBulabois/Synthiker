@@ -20,8 +20,8 @@ command -v pd >/dev/null 2>&1 || {
 [ -z "${VIRTUAL_ENV:-}" ] && echo "⚠️  Venv non activé — pensez à 'source venv/bin/activate'"
 
 # Vérifier que le patch Pd existe
-[ -f "pd_patches/synth_main.pd" ] || {
-    echo "❌ pd_patches/synth_main.pd introuvable. Exécutez ce script depuis la racine du repo."
+[ -f "pd_patches/synth_octatrack.pd" ] || {
+    echo "❌ pd_patches/synth_octatrack.pd introuvable. Exécutez ce script depuis la racine du repo."
     exit 1
 }
 
@@ -32,7 +32,7 @@ echo "============================================="
 # Lancer Pure Data en arrière-plan
 # ---------------------------------------------------------------------------
 echo "🎵 Lancement Pure Data (port OSC 5005)..."
-pd -nogui -open pd_patches/synth_main.pd &
+pd -nogui -open pd_patches/synth_octatrack.pd &
 PID_PD=$!
 echo "   PID Pure Data : $PID_PD"
 
@@ -42,19 +42,20 @@ sleep 2
 # ---------------------------------------------------------------------------
 # Lancer les composants Python
 # ---------------------------------------------------------------------------
-echo "🖥️  Lancement fake_panel (PyGame)..."
-python sim/fake_panel.py &
+echo "🖥️  Lancement fake_panel (PyGame — mode Octatrack)..."
+python sim/fake_panel.py --octatrack &
 PID_PANEL=$!
 echo "   PID fake_panel : $PID_PANEL"
 
-echo "🥁 Lancement séquenceur (BPM=120)..."
-python sim/sequencer.py --bpm 120 &
+echo "🥁 Lancement séquenceur Octatrack (BPM=128)..."
+python sim/sequencer.py --bpm 128 &
 PID_SEQ=$!
 echo "   PID séquenceur : $PID_SEQ"
 
 echo ""
 echo "✅ Simulation démarrée !"
 echo "   • Fenêtre PyGame : molette=encodeur, Q/W=changer encodeur, 1-8=boutons"
+echo "   • Mode Octatrack : P1=ScèneA  P2=ScèneB  P3=Morph  ENC11=Crossfader"
 echo "   • Ctrl+C pour tout arrêter"
 echo ""
 
