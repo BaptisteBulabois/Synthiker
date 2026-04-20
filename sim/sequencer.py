@@ -1,11 +1,12 @@
 """
-sequencer.py — Séquenceur 16 pas → OSC pour Synthiker.
+sequencer.py — Séquenceur 16 pas → OSC pour Synthiker (design Octatrack).
 
 Envoie des triggers OSC vers Pure Data (port 5005) à chaque tick.
 Chaque tick = une double-croche (BPM / 4 en temps).
 
 Usage :
-    python sim/sequencer.py --bpm 120
+    python sim/sequencer.py
+    python sim/sequencer.py --bpm 128
 """
 
 import argparse
@@ -15,17 +16,12 @@ import time
 sys.path.insert(0, __file__.replace("/sim/sequencer.py", ""))
 
 from sim.osc_bridge import make_pd_client, ADDR_SEQ_STEP, ADDR_SEQ_TRIG
+from sim.presets.octatrack import PATTERNS, DEFAULT_BPM
 
 # ---------------------------------------------------------------------------
-# Patterns 16 pas par défaut (4 pistes)
+# Pistes Octatrack : 4 percussions + 4 mélodiques
 # ---------------------------------------------------------------------------
-PATTERNS = {
-    "kick":  [1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0],
-    "snare": [0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1, 0],
-    "hat":   [1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 1],
-    "perc":  [0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1],
-}
-TRACK_NAMES = list(PATTERNS.keys())
+TRACK_NAMES = ["bd", "sd", "hat", "clap", "bass", "lead", "chord", "fx"]
 TRACK_STEPS = [PATTERNS[name] for name in TRACK_NAMES]
 
 
@@ -33,7 +29,7 @@ def run_sequencer(bpm: int) -> None:
     """Boucle principale du séquenceur.
 
     Parcourt 16 steps en boucle, envoie un tick toutes les 60/(bpm*4) secondes
-    (doubles-croches).
+    (doubles-croches). Design Octatrack : 8 pistes (BD/SD/HH/CL + BASS/LEAD/CHORD/FX).
     """
     client = make_pd_client()
     step_duration = 60.0 / (bpm * 4)  # durée d'une double-croche en secondes
@@ -80,9 +76,9 @@ def run_sequencer(bpm: int) -> None:
 
 def main() -> None:
     """Point d'entrée CLI."""
-    parser = argparse.ArgumentParser(description="Séquenceur 16 pas Synthiker → OSC")
-    parser.add_argument("--bpm", type=int, default=120,
-                        help="Tempo en BPM (défaut : 120)")
+    parser = argparse.ArgumentParser(description="Séquenceur 16 pas Synthiker Octatrack → OSC")
+    parser.add_argument("--bpm", type=int, default=DEFAULT_BPM,
+                        help=f"Tempo en BPM (défaut : {DEFAULT_BPM})")
     args = parser.parse_args()
     run_sequencer(args.bpm)
 

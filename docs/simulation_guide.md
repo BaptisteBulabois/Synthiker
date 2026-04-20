@@ -64,7 +64,7 @@ chmod +x scripts/run_sim.sh
 ### Étape 1 — Ouvrir Pure Data et activer le DSP
 
 ```bash
-pd pd_patches/synth_main.pd
+pd pd_patches/synth_octatrack.pd
 ```
 
 Dans la fenêtre Pure Data :
@@ -84,18 +84,18 @@ Une fenêtre 512×256 (128×64 × 4) s'ouvre, affichant BPM, mode, step et macro
 ### Étape 3 — Lancer la façade graphique
 
 ```bash
-python sim/fake_panel.py
+python sim/fake_panel.py --octatrack
 ```
 
-Une fenêtre 900×500 affiche 12 encodeurs et 8 boutons.
+Une fenêtre 900×500 affiche 12 encodeurs, 8 boutons et la scène Octatrack courante (OLED mock).
 
 ### Étape 4 — Lancer le séquenceur
 
 ```bash
-python sim/sequencer.py --bpm 120
+python sim/sequencer.py
 ```
 
-Le séquenceur envoie des triggers OSC vers Pure Data toutes les doubles-croches.
+Le séquenceur envoie des triggers OSC vers Pure Data toutes les doubles-croches (BPM 128, 8 pistes Octatrack).
 
 ### Étape 5 — Lancer la génération IA (optionnel)
 
@@ -119,7 +119,7 @@ Au premier lancement, crée `tracker_pattern.json` avec un pattern par défaut.
 
 ```bash
 # Terminal 1 : Pure Data (active le DSP !)
-pd pd_patches/synth_main.pd
+pd pd_patches/synth_octatrack.pd
 
 # Terminal 2 : Stack Python complète
 bash scripts/run_sim.sh
@@ -129,7 +129,7 @@ bash scripts/run_sim.sh
 
 ## 🎮 Interagir avec la simulation
 
-### Contrôles `fake_panel.py`
+### Contrôles `fake_panel.py --octatrack`
 
 | Action | Effet |
 |---|---|
@@ -137,6 +137,11 @@ bash scripts/run_sim.sh
 | **Q** | Encodeur précédent |
 | **W** | Encodeur suivant |
 | **1..8** | Toggle boutons PAD (REC/PLAY/STOP/P1-P4/MODE) |
+| **P1 (4)** | Scène A |
+| **P2 (5)** | Scène B |
+| **P3 (6)** | Morph A↔B |
+| **ENC 11 + molette** | Crossfader `/oct/scene` |
+| **Tenir 1-8 + molette** | P-lock sur le step |
 | **Échap** | Quitter |
 
 ### Vérifier que les OSC arrivent dans Pure Data

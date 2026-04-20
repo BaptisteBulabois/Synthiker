@@ -41,10 +41,15 @@
 | `/macro/3` | `float` | 0.0..1.0 | Macro 3 — Density | `fake_panel.py` | OLED |
 | `/macro/4` | `float` | 0.0..1.0 | Macro 4 — Chaos | `fake_panel.py` | OLED |
 | `/seq/step` | `int` | 0..15 | Step courant du séquenceur | `sequencer.py` | Pure Data + OLED |
-| `/seq/trig/0` | `int` | 0\|1 | Trigger piste 0 (kick) | `sequencer.py` | Pure Data |
-| `/seq/trig/1` | `int` | 0\|1 | Trigger piste 1 (snare) | `sequencer.py` | Pure Data |
-| `/seq/trig/2` | `int` | 0\|1 | Trigger piste 2 (hat) | `sequencer.py` | Pure Data |
-| `/seq/trig/3` | `int` | 0\|1 | Trigger piste 3 (perc) | `sequencer.py` | Pure Data |
+| `/seq/trig/0` | `int` | 0\|1 | Trigger piste 0 (BD — Bass Drum) | `sequencer.py` | Pure Data |
+| `/seq/trig/1` | `int` | 0\|1 | Trigger piste 1 (SD — Snare) | `sequencer.py` | Pure Data |
+| `/seq/trig/2` | `int` | 0\|1 | Trigger piste 2 (HH — Hi-Hat) | `sequencer.py` | Pure Data |
+| `/seq/trig/3` | `int` | 0\|1 | Trigger piste 3 (CL — Clap) | `sequencer.py` | Pure Data |
+| `/seq/trig/4` | `int` | 0\|1 | Trigger piste 4 (BASS) | `sequencer.py` | Pure Data |
+| `/seq/trig/5` | `int` | 0\|1 | Trigger piste 5 (LEAD) | `sequencer.py` | Pure Data |
+| `/seq/trig/6` | `int` | 0\|1 | Trigger piste 6 (CHORD) | `sequencer.py` | Pure Data |
+| `/seq/trig/7` | `int` | 0\|1 | Trigger piste 7 (FX) | `sequencer.py` | Pure Data |
+| `/oct/scene` | `float` | 0.0..1.0 | Crossfader scène A (0.0) ↔ scène B (1.0) | `fake_panel.py` | Pure Data |
 | `/seq/kick/0..15` | `int` | 0\|1 | Pattern kick généré par IA (step 0..15) | `ai_gen.py` | Pure Data |
 | `/mode` | `string` | "step"\|"tracker" | Mode actuel du séquenceur | `tracker_mode.py` | OLED |
 | `/heartbeat` | _(aucun)_ | — | Ping de vie | tous | OLED |
