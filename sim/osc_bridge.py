@@ -25,6 +25,7 @@ ADDR_SEQ_TRIG = "/seq/trig/{}" # 0..3   → int 0|1 (trigger par piste)
 ADDR_MODE = "/mode"            # "step" | "tracker"
 ADDR_MACRO = "/macro/{}"       # 1..4   → float 0..1
 ADDR_HEARTBEAT = "/heartbeat"  # ping de vie (sans argument)
+ADDR_OCT_SCENE = "/oct/scene"  # float 0.0..1.0 → crossfader scène A↔B
 
 # ---------------------------------------------------------------------------
 # Factories de clients

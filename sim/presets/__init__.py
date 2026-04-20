@@ -3,6 +3,7 @@
 from sim.presets.tr808 import PATTERNS as TR808_PATTERNS, ENCODER_DEFAULTS as TR808_DEFAULTS
 from sim.presets.elektron import PATTERNS as ELEKTRON_PATTERNS, ENCODER_DEFAULTS as ELEKTRON_DEFAULTS
 from sim.presets.tb303 import PATTERNS as TB303_PATTERNS, ENCODER_DEFAULTS as TB303_DEFAULTS
+from sim.presets.octatrack import PATTERNS as OCT_PATTERNS, ENCODER_DEFAULTS as OCT_DEFAULTS
 
 DESIGNS: dict[str, dict] = {
     "tr808": {
@@ -25,5 +26,12 @@ DESIGNS: dict[str, dict] = {
         "patterns": TB303_PATTERNS,
         "encoder_defaults": TB303_DEFAULTS,
         "tracks": ["bass", "bass", "bass", "bass"],
+    },
+    "octatrack": {
+        "label": "Elektron Octatrack",
+        "patch": "pd_patches/synth_octatrack.pd",
+        "patterns": OCT_PATTERNS,
+        "encoder_defaults": OCT_DEFAULTS,
+        "tracks": ["bd", "sd", "hat", "clap", "bass", "lead", "chord", "fx"],
     },
 }

@@ -8,9 +8,19 @@ Contrôles :
   1..8            → boutons PAD
   Échap           → quitter
 
+Mode Octatrack (--octatrack) :
+  P1 (touche 4)   → applique Scène A (encode defaults A)
+  P2 (touche 5)   → applique Scène B (encode defaults B)
+  P3 (touche 6)   → morphing progressif entre scène courante et l'autre
+  P4 (touche 7)   → cycle parmi les patterns disponibles (affichage console)
+  MODE (touche 8) → bascule affichage OLED (scène / step info)
+  ENC 11 (M3)     → crossfader /oct/scene (0=A, 127=B)
+  Tenir 1..8 + molette → enregistre un P-lock sur le step correspondant
+
 Chaque changement envoie un message OSC vers Pure Data (port 5005).
 """
 
+import argparse
 import sys
 import math
 import pygame
@@ -21,7 +31,11 @@ sys.path.insert(0, __file__.replace("/sim/fake_panel.py", ""))
 
 from sim.osc_bridge import (
     make_pd_client, make_oled_client,
-    ADDR_ENC, ADDR_BTN, ADDR_MACRO
+    ADDR_ENC, ADDR_BTN, ADDR_MACRO, ADDR_OCT_SCENE
+)
+from sim.presets.octatrack import (
+    ENCODER_DEFAULTS_A, ENCODER_DEFAULTS_B,
+    PATTERNS, PATTERNS_LIVE, PATTERNS_SCENE_B,
 )
 
 # ---------------------------------------------------------------------------
@@ -50,6 +64,16 @@ ENCODER_LABELS = [
 ]
 
 BUTTON_LABELS = ["REC", "PLAY", "STOP", "P1", "P2", "P3", "P4", "MODE"]
+
+# Octatrack mode constants
+_OCT_PATTERN_NAMES = ["default", "live", "scene_b"]
+_OCT_PATTERNS = [PATTERNS, PATTERNS_LIVE, PATTERNS_SCENE_B]
+_OCT_BTN_P1 = 3   # index in btn_states for P1
+_OCT_BTN_P2 = 4   # P2
+_OCT_BTN_P3 = 5   # P3
+_OCT_BTN_P4 = 6   # P4
+_OCT_BTN_MODE = 7  # MODE
+_OCT_ENC_XFADE = 11  # M3 encoder = crossfader
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -96,23 +120,39 @@ def draw_button(surface: pygame.Surface, rect: pygame.Rect,
     surface.blit(surf, surf.get_rect(center=rect.center))
 
 
-def draw_oled_mock(surface: pygame.Surface, enc_values: list[int]) -> None:
+def draw_oled_mock(surface: pygame.Surface, enc_values: list[int],
+                   oct_mode: bool = False, oct_scene_label: str = "A",
+                   oct_xfade: float = 0.0, oct_oled_mode: str = "scene",
+                   oct_pattern_name: str = "default") -> None:
     """Dessine la zone OLED mock en haut de la fenêtre."""
     pygame.draw.rect(surface, (10, 10, 14), (0, 0, WIN_W, OLED_H))
     font = pygame.font.SysFont("monospace", 14)
-    title = font.render("[ SYNTHIKER ]", True, (100, 240, 160))
-    surface.blit(title, (10, 8))
 
-    # Affiche macros M1-M3 (encodeurs 9-11)
-    macro_labels = ["M1", "M2", "M3"]
-    for i, (lbl, idx) in enumerate(zip(macro_labels, [9, 10, 11])):
-        pct = enc_values[idx] / 127.0
-        bar_w = int(pct * 100)
-        bx = 200 + i * 160
-        pygame.draw.rect(surface, (40, 40, 50), (bx, 15, 100, 12))
-        pygame.draw.rect(surface, (100, 200, 140), (bx, 15, bar_w, 12))
-        lbl_surf = font.render(f"{lbl}:{enc_values[idx]:3d}", True, TEXT_COLOR)
-        surface.blit(lbl_surf, (bx + 105, 12))
+    if oct_mode and oct_oled_mode == "scene":
+        title = font.render(f"[ OCTATRACK — SCENE {oct_scene_label} ]", True, (100, 200, 240))
+        surface.blit(title, (10, 8))
+        # Crossfader bar
+        bar_x, bar_y, bar_w = 10, 32, 200
+        pygame.draw.rect(surface, (40, 40, 50), (bar_x, bar_y, bar_w, 10))
+        fill_w = int(oct_xfade * bar_w)
+        bar_color = (100, 200, 140) if oct_xfade < 0.5 else (200, 120, 60)
+        pygame.draw.rect(surface, bar_color, (bar_x, bar_y, fill_w, 10))
+        xf_lbl = font.render(f"A←{int(oct_xfade*100):3d}%→B  pat:{oct_pattern_name}",
+                             True, (180, 180, 180))
+        surface.blit(xf_lbl, (220, 28))
+    else:
+        title = font.render("[ SYNTHIKER ]", True, (100, 240, 160))
+        surface.blit(title, (10, 8))
+        # Affiche macros M1-M3 (encodeurs 9-11)
+        macro_labels = ["M1", "M2", "M3"]
+        for i, (lbl, idx) in enumerate(zip(macro_labels, [9, 10, 11])):
+            pct = enc_values[idx] / 127.0
+            bar_w = int(pct * 100)
+            bx = 200 + i * 160
+            pygame.draw.rect(surface, (40, 40, 50), (bx, 15, 100, 12))
+            pygame.draw.rect(surface, (100, 200, 140), (bx, 15, bar_w, 12))
+            lbl_surf = font.render(f"{lbl}:{enc_values[idx]:3d}", True, TEXT_COLOR)
+            surface.blit(lbl_surf, (bx + 105, 12))
 
     # Séparateur
     pygame.draw.line(surface, (50, 50, 60), (0, OLED_H - 1), (WIN_W, OLED_H - 1))
@@ -124,9 +164,18 @@ def draw_oled_mock(surface: pygame.Surface, enc_values: list[int]) -> None:
 
 def main() -> None:
     """Point d'entrée : lance la fenêtre fake_panel."""
+    parser = argparse.ArgumentParser(description="Synthiker — Fake Panel")
+    parser.add_argument(
+        "--octatrack", action="store_true",
+        help="Active le mode Octatrack (scènes A/B, crossfader, p-locks)",
+    )
+    args = parser.parse_args()
+    oct_mode: bool = args.octatrack
+
     pygame.init()
     screen = pygame.display.set_mode((WIN_W, WIN_H))
-    pygame.display.set_caption("Synthiker — Fake Panel")
+    caption = "Synthiker — Fake Panel [OCTATRACK]" if oct_mode else "Synthiker — Fake Panel"
+    pygame.display.set_caption(caption)
     clock = pygame.time.Clock()
 
     pd_client = make_pd_client()
@@ -136,6 +185,26 @@ def main() -> None:
     enc_values = [64] * 12   # 12 encodeurs, valeur initiale 64 (milieu)
     btn_states = [False] * 8  # 8 boutons
     selected_enc = 0
+
+    # --- État Octatrack ---
+    oct_scene_label: str = "A"        # scène courante affichée
+    oct_scene_src: list[int] = list(ENCODER_DEFAULTS_A)   # valeurs de départ du morph
+    oct_scene_dst: list[int] = list(ENCODER_DEFAULTS_B)   # valeurs cible du morph
+    oct_morph_step: int = 0           # 0 = pas de morph en cours
+    OCT_MORPH_STEPS: int = 20         # nombre d'étapes pour le morph progressif
+    oct_oled_mode: str = "scene"      # "scene" ou "info"
+    oct_pattern_idx: int = 0          # index du pattern courant
+    # P-locks : {step (0-7): {enc_idx: value}}
+    oct_plocks: dict[int, dict[int, int]] = {}
+
+    if oct_mode:
+        # Initialise les encodeurs sur les valeurs de la Scène A
+        enc_values = list(ENCODER_DEFAULTS_A)
+        for idx, val in enumerate(enc_values):
+            pd_client.send_message(ADDR_ENC.format(idx), val)
+        print("[OCT] Mode Octatrack actif — Scène A chargée")
+        print("[OCT] P1=ScèneA  P2=ScèneB  P3=Morph  P4=PatternSuivant")
+        print("[OCT] ENC11=Crossfader  Tenir 1-8 + molette = P-lock")
 
     # Calcul positions encodeurs (2 rangées × 6 colonnes)
     enc_positions = []
@@ -154,9 +223,42 @@ def main() -> None:
     for i in range(8):
         btn_positions.append(pygame.Rect(bx + i * (BTN_W + 8), btn_y, BTN_W, BTN_H))
 
+    # Clés 1-8 mappées sur les pads
+    _PAD_KEYS = [
+        pygame.K_1, pygame.K_2, pygame.K_3, pygame.K_4,
+        pygame.K_5, pygame.K_6, pygame.K_7, pygame.K_8,
+    ]
+
+    def _send_scene(defaults: list[int], label: str) -> None:
+        """Envoie un jeu de valeurs d'encodeurs et met à jour l'état local."""
+        nonlocal oct_scene_label
+        oct_scene_label = label
+        for idx, val in enumerate(defaults):
+            enc_values[idx] = val
+            pd_client.send_message(ADDR_ENC.format(idx), val)
+            if idx >= 9:
+                oled_client.send_message(ADDR_MACRO.format(idx - 8), val / 127.0)
+        print(f"[OCT] Scène {label} appliquée")
+
     running = True
     while running:
         clock.tick(FPS)
+
+        # Morph progressif Octatrack (P3)
+        if oct_mode and oct_morph_step > 0:
+            t = 1.0 - (oct_morph_step - 1) / OCT_MORPH_STEPS
+            for idx in range(12):
+                a = oct_scene_src[idx]
+                b = oct_scene_dst[idx]
+                val = int(a + (b - a) * t)
+                enc_values[idx] = val
+                pd_client.send_message(ADDR_ENC.format(idx), val)
+            oct_morph_step -= 1
+            if oct_morph_step == 0:
+                # Morph terminé : met à jour la scène cible
+                enc_values[:] = list(oct_scene_dst)
+                oct_scene_label = "B" if oct_scene_dst == list(ENCODER_DEFAULTS_B) else "A"
+                print(f"[OCT] Morph terminé → Scène {oct_scene_label}")
 
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
@@ -170,21 +272,73 @@ def main() -> None:
                 elif event.key == pygame.K_w:
                     selected_enc = (selected_enc + 1) % 12
                 else:
-                    # Touches 1..8 → boutons
-                    for i, k in enumerate([
-                        pygame.K_1, pygame.K_2, pygame.K_3, pygame.K_4,
-                        pygame.K_5, pygame.K_6, pygame.K_7, pygame.K_8,
-                    ]):
+                    for i, k in enumerate(_PAD_KEYS):
                         if event.key == k:
-                            btn_states[i] = not btn_states[i]
-                            val = 1 if btn_states[i] else 0
-                            pd_client.send_message(ADDR_BTN.format(i), val)
-                            oled_client.send_message(ADDR_BTN.format(i), val)
-                            print(f"[BTN] {BUTTON_LABELS[i]} → {val}")
+                            if oct_mode:
+                                if i == _OCT_BTN_P1:
+                                    # P1 → Scène A
+                                    _send_scene(ENCODER_DEFAULTS_A, "A")
+                                elif i == _OCT_BTN_P2:
+                                    # P2 → Scène B
+                                    _send_scene(ENCODER_DEFAULTS_B, "B")
+                                elif i == _OCT_BTN_P3:
+                                    # P3 → Lancer morph vers l'autre scène
+                                    if oct_scene_label == "A":
+                                        oct_scene_src = list(enc_values)
+                                        oct_scene_dst = list(ENCODER_DEFAULTS_B)
+                                    else:
+                                        oct_scene_src = list(enc_values)
+                                        oct_scene_dst = list(ENCODER_DEFAULTS_A)
+                                    oct_morph_step = OCT_MORPH_STEPS
+                                    print(f"[OCT] Morph Scène {oct_scene_label} → "
+                                          f"{'B' if oct_scene_label == 'A' else 'A'} lancé")
+                                elif i == _OCT_BTN_P4:
+                                    # P4 → Pattern suivant
+                                    oct_pattern_idx = (oct_pattern_idx + 1) % len(_OCT_PATTERN_NAMES)
+                                    name = _OCT_PATTERN_NAMES[oct_pattern_idx]
+                                    print(f"[OCT] Pattern → {name}  "
+                                          f"(relance avec --design octatrack --pattern {name})")
+                                elif i == _OCT_BTN_MODE:
+                                    # MODE → bascule affichage OLED
+                                    oct_oled_mode = "info" if oct_oled_mode == "scene" else "scene"
+                                    print(f"[OCT] OLED mode → {oct_oled_mode}")
+                                else:
+                                    # REC/PLAY/STOP : comportement normal
+                                    btn_states[i] = not btn_states[i]
+                                    val = 1 if btn_states[i] else 0
+                                    pd_client.send_message(ADDR_BTN.format(i), val)
+                                    oled_client.send_message(ADDR_BTN.format(i), val)
+                                    print(f"[BTN] {BUTTON_LABELS[i]} → {val}")
+                            else:
+                                btn_states[i] = not btn_states[i]
+                                val = 1 if btn_states[i] else 0
+                                pd_client.send_message(ADDR_BTN.format(i), val)
+                                oled_client.send_message(ADDR_BTN.format(i), val)
+                                print(f"[BTN] {BUTTON_LABELS[i]} → {val}")
 
             elif event.type == pygame.MOUSEWHEEL:
-                # Molette : inc/déc l'encodeur sélectionné
                 delta = event.y
+                # En mode Octatrack, vérifier si une touche 1-8 est maintenue → P-lock
+                if oct_mode:
+                    keys = pygame.key.get_pressed()
+                    held_step: int | None = None
+                    for step_key_idx, k in enumerate(_PAD_KEYS):
+                        if keys[k]:
+                            held_step = step_key_idx  # step 0-7
+                            break
+                    if held_step is not None:
+                        enc_values[selected_enc] = max(
+                            0, min(127, enc_values[selected_enc] + delta)
+                        )
+                        v = enc_values[selected_enc]
+                        if held_step not in oct_plocks:
+                            oct_plocks[held_step] = {}
+                        oct_plocks[held_step][selected_enc] = v
+                        print(f"[PLOCK] step={held_step+1}  "
+                              f"{ENCODER_LABELS[selected_enc]}={v}  "
+                              f"(p-locks actifs: {sum(len(d) for d in oct_plocks.values())})")
+                        continue  # pas d'envoi OSC normal pour un p-lock
+
                 enc_values[selected_enc] = max(0, min(127, enc_values[selected_enc] + delta))
                 v = enc_values[selected_enc]
                 pd_client.send_message(ADDR_ENC.format(selected_enc), v)
@@ -192,11 +346,26 @@ def main() -> None:
                 if selected_enc >= 9:
                     macro_idx = selected_enc - 8  # 1..3
                     oled_client.send_message(ADDR_MACRO.format(macro_idx), v / 127.0)
-                print(f"[ENC] {ENCODER_LABELS[selected_enc]} ({selected_enc}) → {v}")
+                # Encodeur 11 en mode Octatrack → crossfader
+                if oct_mode and selected_enc == _OCT_ENC_XFADE:
+                    xfade_val = v / 127.0
+                    pd_client.send_message(ADDR_OCT_SCENE, xfade_val)
+                    print(f"[OCT] Crossfader /oct/scene → {xfade_val:.3f}")
+                else:
+                    print(f"[ENC] {ENCODER_LABELS[selected_enc]} ({selected_enc}) → {v}")
 
         # --- Dessin ---
         screen.fill(BG_COLOR)
-        draw_oled_mock(screen, enc_values)
+
+        oct_xfade = enc_values[_OCT_ENC_XFADE] / 127.0 if oct_mode else 0.0
+        draw_oled_mock(
+            screen, enc_values,
+            oct_mode=oct_mode,
+            oct_scene_label=oct_scene_label,
+            oct_xfade=oct_xfade,
+            oct_oled_mode=oct_oled_mode,
+            oct_pattern_name=_OCT_PATTERN_NAMES[oct_pattern_idx],
+        )
 
         for i, (cx, cy) in enumerate(enc_positions):
             draw_encoder(screen, cx, cy, enc_values[i],
@@ -207,11 +376,14 @@ def main() -> None:
 
         # Indicateur encodeur sélectionné
         font_info = pygame.font.SysFont("monospace", 13)
-        info = font_info.render(
+        info_text = (
             f"Encodeur sélectionné : {ENCODER_LABELS[selected_enc]} "
-            f"(Q/W pour changer, molette pour régler)",
-            True, (120, 120, 140)
+            f"(Q/W pour changer, molette pour régler)"
         )
+        if oct_mode:
+            plock_count = sum(len(d) for d in oct_plocks.values())
+            info_text += f"  |  P-locks: {plock_count}"
+        info = font_info.render(info_text, True, (120, 120, 140))
         screen.blit(info, (10, WIN_H - BTN_H - 42))
 
         pygame.display.flip()

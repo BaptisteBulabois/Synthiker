@@ -27,6 +27,7 @@ from sim.presets import DESIGNS
 import sim.presets.tr808 as _tr808
 import sim.presets.elektron as _elektron
 import sim.presets.tb303 as _tb303
+import sim.presets.octatrack as _octatrack
 
 # Patterns alternatifs accessibles par nom
 _EXTRA_PATTERNS: dict[str, dict] = {
@@ -44,6 +45,11 @@ _EXTRA_PATTERNS: dict[str, dict] = {
         "default":  _tb303.PATTERNS,
         "acid8":    _tb303.PATTERNS_ACID8,
         "squelch":  _tb303.PATTERNS_SQUELCH,
+    },
+    "octatrack": {
+        "default":  _octatrack.PATTERNS,
+        "live":     _octatrack.PATTERNS_LIVE,
+        "scene_b":  _octatrack.PATTERNS_SCENE_B,
     },
 }
 
@@ -150,7 +156,8 @@ def main() -> None:
         sys.exit(1)
 
     patterns = available_patterns[args.pattern]
-    bpm_map = {"tr808": _tr808.DEFAULT_BPM, "elektron": _elektron.DEFAULT_BPM, "tb303": _tb303.DEFAULT_BPM}
+    bpm_map = {"tr808": _tr808.DEFAULT_BPM, "elektron": _elektron.DEFAULT_BPM,
+               "tb303": _tb303.DEFAULT_BPM, "octatrack": _octatrack.DEFAULT_BPM}
     bpm = args.bpm or bpm_map[design_key]
 
     print(f"\n╔══════════════════════════════════════════════╗")
@@ -161,6 +168,14 @@ def main() -> None:
     print(f"╚══════════════════════════════════════════════╝")
     print(f"\n  → Ouvre le patch dans Pure Data :")
     print(f"    pd {design_info['patch']}\n")
+
+    if design_key == "octatrack":
+        print("  ── Mode Octatrack ──────────────────────────────")
+        print("  Scènes A/B : utilise fake_panel.py --octatrack")
+        print("    P1 → Scène A   P2 → Scène B   P3 → Morph A↔B")
+        print("    ENC 11 (M3)   → crossfader /oct/scene")
+        print("    1-8 + molette → P-lock sur le step courant")
+        print("  ────────────────────────────────────────────────\n")
 
     pd_client = make_pd_client()
     oled_client = make_oled_client()
