@@ -196,6 +196,7 @@ def main() -> None:
     oct_pattern_idx: int = 0          # index du pattern courant
     # P-locks : {step (0-7): {enc_idx: value}}
     oct_plocks: dict[int, dict[int, int]] = {}
+    oct_morph_dst_label: str = "B"    # label de la scène cible (mis à jour au lancement du morph)
 
     if oct_mode:
         # Initialise les encodeurs sur les valeurs de la Scène A
@@ -246,7 +247,7 @@ def main() -> None:
 
         # Morph progressif Octatrack (P3)
         if oct_mode and oct_morph_step > 0:
-            t = 1.0 - (oct_morph_step - 1) / OCT_MORPH_STEPS
+            t = 1.0 - oct_morph_step / OCT_MORPH_STEPS
             for idx in range(12):
                 a = oct_scene_src[idx]
                 b = oct_scene_dst[idx]
@@ -255,9 +256,9 @@ def main() -> None:
                 pd_client.send_message(ADDR_ENC.format(idx), val)
             oct_morph_step -= 1
             if oct_morph_step == 0:
-                # Morph terminé : met à jour la scène cible
+                # Morph terminé : fixe les valeurs finales et met à jour le label de scène
                 enc_values[:] = list(oct_scene_dst)
-                oct_scene_label = "B" if oct_scene_dst == list(ENCODER_DEFAULTS_B) else "A"
+                oct_scene_label = oct_morph_dst_label
                 print(f"[OCT] Morph terminé → Scène {oct_scene_label}")
 
         for event in pygame.event.get():
@@ -286,12 +287,14 @@ def main() -> None:
                                     if oct_scene_label == "A":
                                         oct_scene_src = list(enc_values)
                                         oct_scene_dst = list(ENCODER_DEFAULTS_B)
+                                        oct_morph_dst_label = "B"
                                     else:
                                         oct_scene_src = list(enc_values)
                                         oct_scene_dst = list(ENCODER_DEFAULTS_A)
+                                        oct_morph_dst_label = "A"
                                     oct_morph_step = OCT_MORPH_STEPS
                                     print(f"[OCT] Morph Scène {oct_scene_label} → "
-                                          f"{'B' if oct_scene_label == 'A' else 'A'} lancé")
+                                          f"{oct_morph_dst_label} lancé")
                                 elif i == _OCT_BTN_P4:
                                     # P4 → Pattern suivant
                                     oct_pattern_idx = (oct_pattern_idx + 1) % len(_OCT_PATTERN_NAMES)
@@ -334,9 +337,10 @@ def main() -> None:
                         if held_step not in oct_plocks:
                             oct_plocks[held_step] = {}
                         oct_plocks[held_step][selected_enc] = v
+                        plock_count = sum(len(d) for d in oct_plocks.values())
                         print(f"[PLOCK] step={held_step+1}  "
                               f"{ENCODER_LABELS[selected_enc]}={v}  "
-                              f"(p-locks actifs: {sum(len(d) for d in oct_plocks.values())})")
+                              f"(p-locks actifs: {plock_count})")
                         continue  # pas d'envoi OSC normal pour un p-lock
 
                 enc_values[selected_enc] = max(0, min(127, enc_values[selected_enc] + delta))
